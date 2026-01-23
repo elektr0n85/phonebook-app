@@ -1,0 +1,76 @@
+# Docker Compose - Full Stack Phonebook Application
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: phonebook-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-phonebook_db}
+      POSTGRES_USER: ${POSTGRES_USER:-phonebook_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phonebook_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - phonebook-network
+    restart: unless-stopped
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: phonebook-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-phonebook_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-phonebook_db}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:3000}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-False}
+    ports:
+      - "8000:8000"
+    networks:
+      - phonebook-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        sleep 5 &&
+        python init_db.py &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+  # Frontend (React + Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+    container_name: phonebook-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - phonebook-network
+    restart: unless-stopped
+
+networks:
+  phonebook-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
