@@ -11,6 +11,8 @@ import { Register } from './components/Auth/Register';
 import { ContactList } from './components/Contacts/ContactList';
 import { ContactDetail } from './components/Contacts/ContactDetail';
 import { ContactForm } from './components/Contacts/ContactForm';
+import { EditContactForm } from './components/Contacts/EditContactForm'
+import { AddPhoneForm } from './components/Contacts/AddPhoneForm';
 
 function App() {
   return (
@@ -49,6 +51,25 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ContactDetail />
+                </ProtectedRoute>
+              }
+            />
+
+
+            <Route
+              path="/contacts/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <EditContactForm />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/contacts/:id/add-phone"
+              element={
+                <ProtectedRoute>
+                  <AddPhoneForm />
                 </ProtectedRoute>
               }
             />

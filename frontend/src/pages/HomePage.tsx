@@ -41,19 +41,37 @@ export const HomePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="card">
-            <h3 className="text-xl font-semibold mb-2">📱 Multi-Phone</h3>
-            <p className="text-gray-600">
-              Support for mobile, landline, and internal extensions
-            </p>
-          </div>
+          {isAuthenticated ? (
+            <Link to="/contacts/new" className="card hover:shadow-lg transition-shadow cursor-pointer">
+              <h3 className="text-xl font-semibold mb-2">📱 Multi-Phone</h3>
+              <p className="text-gray-600">
+                Support for mobile, landline, and internal extensions
+              </p>
+            </Link>
+          ) : (
+            <div className="card">
+              <h3 className="text-xl font-semibold mb-2">📱 Multi-Phone</h3>
+              <p className="text-gray-600">
+                Support for mobile, landline, and internal extensions
+              </p>
+            </div>
+          )}
 
-          <div className="card">
-            <h3 className="text-xl font-semibold mb-2">🔍 Search</h3>
-            <p className="text-gray-600">
-              Quickly find contacts by name, email, or company
-            </p>
-          </div>
+          {isAuthenticated ? (
+            <Link to="/contacts" className="card hover:shadow-lg transition-shadow cursor-pointer">
+              <h3 className="text-xl font-semibold mb-2">🔍 Search</h3>
+              <p className="text-gray-600">
+                Quickly find contacts by name, email, phone or company
+              </p>
+            </Link>
+          ) : (
+            <div className="card">
+              <h3 className="text-xl font-semibold mb-2">🔍 Search</h3>
+              <p className="text-gray-600">
+                Quickly find contacts by name, email, phone or company
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -68,7 +68,7 @@ export const ContactList: React.FC = () => {
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="Search by name, email, or company..."
+            placeholder="Search by name, email, phone or company..."
             className="input-field flex-1"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -108,26 +108,28 @@ export const ContactList: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {contacts.map((contact) => (
-            <div key={contact.id} className="card hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold mb-2">{contact.name}</h3>
-              
-              {contact.company && (
-                <p className="text-gray-600 mb-1">
-                  <span className="font-medium">Company:</span> {contact.company}
-                </p>
-              )}
-              
-              {contact.position && (
-                <p className="text-gray-600 mb-1">
-                  <span className="font-medium">Position:</span> {contact.position}
-                </p>
-              )}
-              
-              {contact.email && (
-                <p className="text-gray-600 mb-1">
-                  <span className="font-medium">Email:</span> {contact.email}
-                </p>
-              )}
+            <div key={contact.id} className="card hover:shadow-lg transition-shadow flex flex-col">
+              <div className="flex-1">
+                <h3 className="text-xl font-semibold mb-2">{contact.name}</h3>
+                
+                {contact.company && (
+                  <p className="text-gray-600 mb-1">
+                    <span className="font-medium">Company:</span> {contact.company}
+                  </p>
+                )}
+                
+                {contact.position && (
+                  <p className="text-gray-600 mb-1">
+                    <span className="font-medium">Position:</span> {contact.position}
+                  </p>
+                )}
+                
+                {contact.email && (
+                  <p className="text-gray-600 mb-1">
+                    <span className="font-medium">Email:</span> {contact.email}
+                  </p>
+                )}
+              </div>
               
               <div className="mt-4 flex gap-2">
                 <Link

@@ -7,6 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
 from app.models.contact import Contact
+from app.models.contact_phone import ContactPhone
+from app.models.phone import Phone
 from app.schemas.contact import ContactCreate, ContactUpdate
 
 
@@ -118,16 +120,27 @@ class CRUDContact(CRUDBase[Contact, ContactCreate, ContactUpdate]):
         # Case-insensitive search
         search_pattern = f"%{query}%"
         
-        stmt = select(Contact).where(
-            Contact.user_id == user_id,
-            Contact.is_deleted == False,
-            or_(
-                Contact.name.ilike(search_pattern),
-                Contact.email.ilike(search_pattern),
-                Contact.company.ilike(search_pattern),
-                Contact.position.ilike(search_pattern)
+        stmt = (
+            select(Contact)
+            .outerjoin(ContactPhone, Contact.id == ContactPhone.contact_id)
+            .outerjoin(Phone, ContactPhone.phone_id == Phone.id)
+            .where(
+                Contact.user_id == user_id,
+                Contact.is_deleted == False,
+                or_(
+                    Contact.name.ilike(search_pattern),
+                    Contact.email.ilike(search_pattern),
+                    Contact.company.ilike(search_pattern),
+                    Contact.position.ilike(search_pattern),
+                    Phone.phone_number.ilike(search_pattern),
+                    Phone.extension.ilike(search_pattern),
+                    Phone.local_number.ilike(search_pattern),
+                )
             )
-        ).offset(skip).limit(limit)
+            .distinct()  # Avoid duplicates when contact has multiple matching phones
+            .offset(skip)
+            .limit(limit)
+        )
         
         result = await db.execute(stmt)
         return list(result.scalars().all())
