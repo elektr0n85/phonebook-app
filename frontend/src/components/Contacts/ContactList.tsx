@@ -129,6 +129,12 @@ export const ContactList: React.FC = () => {
                     <span className="font-medium">Email:</span> {contact.email}
                   </p>
                 )}
+
+                {contact.primary_phone && (
+                  <p className="text-gray-800 mb-1 text-lg">
+                    📞 {contact.primary_phone}
+                  </p>
+                )}
               </div>
               
               <div className="mt-4 flex gap-2">

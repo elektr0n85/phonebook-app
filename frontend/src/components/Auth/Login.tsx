@@ -126,9 +126,12 @@ export const Login: React.FC = () => {
             </button>
           </div>
           
-          <div className="text-center">
-            <Link to="/register" className="text-blue-600 hover:text-blue-700">
-              Don't have an account? Register
+          <div className="flex items-center justify-between">
+            <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">
+              Forgot your password?
+            </Link>
+            <Link to="/register" className="text-sm text-blue-600 hover:text-blue-700">
+              Create account
             </Link>
           </div>
         </form>

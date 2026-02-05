@@ -6,6 +6,45 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
+def validate_password_strength(password: str) -> str:
+    """
+    Validate password meets security requirements.
+    
+    Requirements:
+        - At least 8 characters
+        - At least 1 uppercase letter
+        - At least 1 lowercase letter
+        - At least 1 digit
+        - At least 1 special character
+        
+    Args:
+        password: Password to validate
+        
+    Returns:
+        Password if valid
+        
+    Raises:
+        ValueError: If password doesn't meet requirements
+    """
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters long")
+    
+    if not any(c.isupper() for c in password):
+        raise ValueError("Password must contain at least one uppercase letter")
+    
+    if not any(c.islower() for c in password):
+        raise ValueError("Password must contain at least one lowercase letter")
+    
+    if not any(c.isdigit() for c in password):
+        raise ValueError("Password must contain at least one digit")
+    
+    special_characters = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    if not any(c in special_characters for c in password):
+        raise ValueError("Password must contain at least one special character")
+    
+    return password
+
+
 class UserBase(BaseModel):
     """Base user schema with common fields."""
     
@@ -30,36 +69,9 @@ class UserCreate(UserBase):
     
     @field_validator("password")
     @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        """
-        Validate password meets security requirements.
-        
-        Requirements:
-            - At least 8 characters
-            - At least 1 uppercase letter
-            - At least 1 lowercase letter
-            - At least 1 digit
-            - At least 1 special character
-            
-        Security: Strong password policy prevents weak passwords
-        """
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        
-        if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        
-        if not any(c.islower() for c in v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
-        
-        special_characters = "!@#$%^&*()_+-=[]{}|;:,.<>?"
-        if not any(c in special_characters for c in v):
-            raise ValueError("Password must contain at least one special character")
-        
-        return v
+    def check_password_strength(cls, v: str) -> str:
+        """Validate password strength using shared function."""
+        return validate_password_strength(v)
 
 
 class UserLogin(BaseModel):
@@ -95,25 +107,9 @@ class UserPasswordChange(BaseModel):
     
     @field_validator("new_password")
     @classmethod
-    def validate_new_password(cls, v: str) -> str:
-        """Validate new password strength (same rules as registration)."""
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        
-        if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        
-        if not any(c.islower() for c in v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
-        
-        special_characters = "!@#$%^&*()_+-=[]{}|;:,.<>?"
-        if not any(c in special_characters for c in v):
-            raise ValueError("Password must contain at least one special character")
-        
-        return v
+    def check_new_password_strength(cls, v: str) -> str:
+        """Validate new password strength using shared function."""
+        return validate_password_strength(v)
 
 
 class UserResponse(UserBase):

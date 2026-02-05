@@ -36,9 +36,18 @@ export const Navigation: React.FC = () => {
           <div className="flex items-center">
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm">
-                  {user?.email}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm">
+                    {user?.email}
+                  </span>
+                  <Link
+                    to="/change-password"
+                    className="text-xs px-2 py-1 bg-blue-700 rounded hover:bg-blue-800 transition-colors"
+                    title="Change password"
+                  >
+                    🔑
+                  </Link>
+                </div>
                 <button
                   onClick={handleLogout}
                   className="px-4 py-2 bg-blue-700 rounded-md hover:bg-blue-800 transition-colors"

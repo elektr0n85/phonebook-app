@@ -7,6 +7,9 @@ import type {
   TokenResponse,
   User,
   MessageResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
 } from '../types';
 
 export const authService = {
@@ -75,5 +78,33 @@ export const authService = {
    */
   isAuthenticated(): boolean {
     return !!localStorage.getItem('access_token');
+  },
+
+  
+  /**
+   * Request password reset email.
+   */
+  async forgotPassword(data: ForgotPasswordRequest): Promise<MessageResponse> {
+    const response = await api.post<MessageResponse>('/auth/forgot-password', data);
+    return response.data;
+  },
+
+  /**
+   * Reset password with token.
+   */
+  async resetPassword(data: ResetPasswordRequest): Promise<MessageResponse> {
+    const response = await api.post<MessageResponse>('/auth/reset-password', data);
+    return response.data;
+  },
+
+  /**
+   * Change password (for logged in user).
+   */
+  async changePassword(data: ChangePasswordRequest): Promise<MessageResponse> {
+    const response = await api.put<MessageResponse>('/users/me/password', {
+      old_password: data.current_password,
+      new_password: data.new_password,
+    });
+    return response.data;
   },
 };

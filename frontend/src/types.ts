@@ -19,6 +19,7 @@ export interface Contact {
   notes?: string;
   company?: string;
   position?: string;
+  primary_phone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -101,4 +102,19 @@ export interface ContactUpdateInput {
   notes?: string;
   company?: string;
   position?: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  email: string;
+  new_password: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
 }
