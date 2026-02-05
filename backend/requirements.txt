@@ -19,6 +19,9 @@ pydantic-settings==2.1.0
 # Validation & Utilities
 email-validator==2.1.0.post1
 
+# Email
+fastapi-mail==1.4.1
+
 # Rate Limiting
 slowapi==0.1.9
 

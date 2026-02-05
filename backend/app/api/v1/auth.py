@@ -6,7 +6,10 @@ Endpoints:
     POST /auth/login - Login with email/password
     POST /auth/logout - Logout (invalidate token)
     POST /auth/refresh - Refresh access token
+    POST /auth/forgot-password - Request password reset
+    POST /auth/reset-password - Reset password with token
 """
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -14,9 +17,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app import crud
 from app.api.deps import DatabaseSession, CurrentUser, get_client_ip, get_user_agent
+from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
+from app.core.email import send_password_reset_email, send_password_changed_notification
 from app.models.audit_log import AuditAction
-from app.schemas.auth import MessageResponse, Token, TokenPair
+from app.schemas.auth import (
+    MessageResponse, 
+    Token, 
+    TokenPair,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
 from app.schemas.user import UserCreate, UserResponse
 
 router = APIRouter()
@@ -264,3 +275,137 @@ async def refresh_token(
     access_token = create_access_token(data={"sub": user.email})
     
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    *,
+    db: DatabaseSession,
+    request: Request,
+    body: ForgotPasswordRequest
+) -> MessageResponse:
+    """
+    Request password reset email.
+    
+    Args:
+        body: Email address to send reset link to
+        
+    Returns:
+        Generic success message (doesn't reveal if email exists)
+        
+    Security:
+        - Always returns success (prevents user enumeration)
+        - Token is cryptographically secure
+        - Token expires after configured time
+        - Audit log created
+    """
+    # Generic message (always same response to prevent user enumeration)
+    response_message = "If an account with this email exists, a password reset link has been sent."
+    
+    # Find user
+    user = await crud.user.get_by_email(db, email=body.email)
+    
+    if not user:
+        # User doesn't exist - return same message (security)
+        return MessageResponse(message=response_message)
+    
+    if not user.is_active:
+        # Inactive account - return same message
+        return MessageResponse(message=response_message)
+    
+    # Generate secure random token
+    token = secrets.token_urlsafe(32)
+    
+    # Save hashed token to user
+    await crud.user.set_reset_token(
+        db, 
+        user=user, 
+        token=token,
+        expires_hours=settings.RESET_TOKEN_EXPIRE_HOURS
+    )
+    
+    # Send reset email
+    email_sent = await send_password_reset_email(
+        email=user.email,
+        token=token,
+        username=None  # Could extract from email if needed
+    )
+    
+    # Audit log
+    await crud.audit_log.create_log(
+        db,
+        user_id=user.id,
+        action=AuditAction.PASSWORD_RESET_REQUEST,
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+        details={"email_sent": email_sent}
+    )
+    
+    return MessageResponse(message=response_message)
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    *,
+    db: DatabaseSession,
+    request: Request,
+    body: ResetPasswordRequest
+) -> MessageResponse:
+    """
+    Reset password using token from email.
+    
+    Args:
+        body: Token, email, and new password
+        
+    Returns:
+        Success message
+        
+    Raises:
+        HTTPException 400: If token is invalid or expired
+        
+    Security:
+        - Validates token cryptographically
+        - Token can only be used once
+        - Password strength is validated
+        - Notification email sent after reset
+        - Audit log created
+    """
+    # Validate password strength
+    from app.schemas.user import validate_password_strength
+    try:
+        validate_password_strength(body.new_password)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    
+    # Find user and verify token
+    user = await crud.user.get_by_reset_token(
+        db, 
+        email=body.email, 
+        token=body.token
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Reset password
+    await crud.user.reset_password(db, user=user, new_password=body.new_password)
+    
+    # Send notification email
+    await send_password_changed_notification(email=user.email)
+    
+    # Audit log
+    await crud.audit_log.create_log(
+        db,
+        user_id=user.id,
+        action=AuditAction.PASSWORD_RESET_COMPLETE,
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request)
+    )
+    
+    return MessageResponse(message="Password has been reset successfully. You can now login with your new password.")

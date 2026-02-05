@@ -1,7 +1,15 @@
 {
   "dependencies": {
+    "@types/react-router-dom": "^5.3.3",
     "autoprefixer": "^10.4.23",
+    "axios": "^1.13.4",
     "postcss": "^8.5.6",
+    "react": "^19.2.4",
+    "react-router-dom": "^6.30.3",
     "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3"
   }
 }

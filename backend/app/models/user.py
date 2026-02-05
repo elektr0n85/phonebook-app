@@ -46,6 +46,10 @@ class User(Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     
+    # Password reset
+    reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    reset_token_expires: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
@@ -137,6 +141,44 @@ class User(Base):
         self.is_locked = False
         self.locked_until = None
         return False
+    
+    def set_reset_token(self, token: str, expires_hours: int = 1) -> None:
+        """
+        Set password reset token.
+        
+        Args:
+            token: Secure random token
+            expires_hours: Token validity in hours
+            
+        Security: Token is hashed before storage
+        """
+        from datetime import timedelta
+        
+        self.reset_token = hash_password(token)
+        self.reset_token_expires = datetime.utcnow() + timedelta(hours=expires_hours)
+    
+    def verify_reset_token(self, token: str) -> bool:
+        """
+        Verify password reset token.
+        
+        Args:
+            token: Token to verify
+            
+        Returns:
+            True if token is valid and not expired
+        """
+        if not self.reset_token or not self.reset_token_expires:
+            return False
+        
+        if datetime.utcnow() > self.reset_token_expires:
+            return False
+        
+        return verify_password(token, self.reset_token)
+    
+    def clear_reset_token(self) -> None:
+        """Clear password reset token after use."""
+        self.reset_token = None
+        self.reset_token_expires = None
     
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email='{self.email}', role='{self.role}')>"

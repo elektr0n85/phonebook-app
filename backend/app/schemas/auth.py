@@ -55,3 +55,24 @@ class ErrorResponse(BaseModel):
     """Generic error response schema."""
     
     detail: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for forgot password request."""
+    
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for password reset with token."""
+    
+    token: str
+    email: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    """Schema for changing password (logged in user)."""
+    
+    current_password: str
+    new_password: str

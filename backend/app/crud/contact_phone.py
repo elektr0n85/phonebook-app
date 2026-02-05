@@ -257,6 +257,68 @@ class CRUDContactPhone(CRUDBase[ContactPhone, ContactPhoneCreate, ContactPhoneUp
         result = await db.execute(stmt)
         return result.scalar_one_or_none() is not None
 
+    async def get_primary_phone_display(
+        self,
+        db: AsyncSession,
+        *,
+        contact_id: int
+    ) -> str | None:
+        """
+        Get formatted primary phone number for display.
+        
+        Args:
+            db: Database session
+            contact_id: Contact ID
+            
+        Returns:
+            Formatted phone string or None if no primary phone
+            
+        Format: "+48 123 456 789" or "123 456 789 ext. 42"
+        """
+        stmt = (
+            select(ContactPhone)
+            .options(selectinload(ContactPhone.phone))
+            .where(
+                and_(
+                    ContactPhone.contact_id == contact_id,
+                    ContactPhone.is_primary == True
+                )
+            )
+        )
+        
+        result = await db.execute(stmt)
+        contact_phone = result.scalar_one_or_none()
+        
+        if not contact_phone or not contact_phone.phone:
+            # No primary phone - try to get first phone
+            stmt = (
+                select(ContactPhone)
+                .options(selectinload(ContactPhone.phone))
+                .where(ContactPhone.contact_id == contact_id)
+                .order_by(ContactPhone.created_at)
+                .limit(1)
+            )
+            result = await db.execute(stmt)
+            contact_phone = result.scalar_one_or_none()
+            
+            if not contact_phone or not contact_phone.phone:
+                return None
+        
+        phone = contact_phone.phone
+        
+        # Format phone number for display
+        parts = []
+        if phone.country_code:
+            parts.append(f"+{phone.country_code}")
+        parts.append(phone.phone_number)
+        
+        display = " ".join(parts)
+        
+        if phone.extension:
+            display += f" ext. {phone.extension}"
+        
+        return display
+
 
 # Create singleton instance
 contact_phone = CRUDContactPhone(ContactPhone)

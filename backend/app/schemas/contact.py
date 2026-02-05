@@ -99,6 +99,7 @@ class ContactResponse(ContactBase):
     """
     
     id: int
+    primary_phone: str | None = None  # Formatted primary phone number
     created_at: datetime
     updated_at: datetime
     

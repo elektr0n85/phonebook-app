@@ -194,6 +194,126 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         await db.commit()
         await db.refresh(user)
         return user
+    
+    async def set_reset_token(
+        self, 
+        db: AsyncSession, 
+        *, 
+        user: User, 
+        token: str,
+        expires_hours: int = 1
+    ) -> User:
+        """
+        Set password reset token for user.
+        
+        Args:
+            db: Database session
+            user: User instance
+            token: Plain text token (will be hashed)
+            expires_hours: Token validity in hours
+            
+        Returns:
+            Updated user instance
+            
+        Security: Token is hashed before storage
+        """
+        user.set_reset_token(token, expires_hours)
+        
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
+    
+    async def reset_password(
+        self, 
+        db: AsyncSession, 
+        *, 
+        user: User, 
+        new_password: str
+    ) -> User:
+        """
+        Reset user password and clear reset token.
+        
+        Args:
+            db: Database session
+            user: User instance
+            new_password: New plain text password
+            
+        Returns:
+            Updated user instance
+            
+        Security:
+            - Password is hashed using bcrypt
+            - Reset token is cleared after use
+            - Failed login attempts are reset
+        """
+        user.set_password(new_password)
+        user.clear_reset_token()
+        user.reset_failed_login()  # Unlock account if locked
+        
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
+    
+    async def change_password(
+        self, 
+        db: AsyncSession, 
+        *, 
+        user: User, 
+        new_password: str
+    ) -> User:
+        """
+        Change user password (for logged in users).
+        
+        Args:
+            db: Database session
+            user: User instance
+            new_password: New plain text password
+            
+        Returns:
+            Updated user instance
+            
+        Security: Password is hashed using bcrypt
+        """
+        user.set_password(new_password)
+        
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
+    
+    async def get_by_reset_token(
+        self, 
+        db: AsyncSession, 
+        *, 
+        email: str,
+        token: str
+    ) -> User | None:
+        """
+        Get user by email and verify reset token.
+        
+        Args:
+            db: Database session
+            email: User email
+            token: Reset token to verify
+            
+        Returns:
+            User instance if token is valid, None otherwise
+            
+        Security:
+            - Validates both email and token
+            - Checks token expiration
+        """
+        user = await self.get_by_email(db, email=email)
+        
+        if not user:
+            return None
+        
+        if not user.verify_reset_token(token):
+            return None
+        
+        return user
 
 
 # Create singleton instance

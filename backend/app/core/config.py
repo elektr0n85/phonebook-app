@@ -34,6 +34,20 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
+    # Email / SMTP
+    SMTP_HOST: str = "smtp.sendgrid.net"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    MAIL_FROM: str = "noreply@phonebook.com"
+    MAIL_FROM_NAME: str = "Phonebook App"
+    
+    # Frontend URL (for password reset links)
+    FRONTEND_URL: str = "http://localhost:5173"
+    
+    # Password reset
+    RESET_TOKEN_EXPIRE_HOURS: int = 1
+    
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
