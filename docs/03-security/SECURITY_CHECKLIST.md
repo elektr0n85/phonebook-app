@@ -21,12 +21,18 @@ Comprehensive security checklist for deploying Phonebook application to producti
   - [ ] Unique password (not used elsewhere)
   - [ ] Stored in environment variables only
 
+- [ ] **SMTP credentials**
+  - [ ] API key or password secured
+  - [ ] Not hardcoded in code
+  - [ ] Sender address verified with email provider
+
 - [ ] **Remove hardcoded secrets**
   ```bash
   # Scan for potential secrets
   grep -r "password" --include="*.py" backend/
   grep -r "secret" --include="*.py" backend/
   grep -r "token" --include="*.py" backend/
+  grep -r "smtp" --include="*.py" backend/
   ```
 
 - [ ] **.env file security**
@@ -51,15 +57,21 @@ Comprehensive security checklist for deploying Phonebook application to producti
   # No wildcards (*)
   # No localhost in production
   ```
+  
+- [ ] **⚠️ Update main.py CORS**
+  - Current: hardcoded localhost URLs
+  - Required: `allow_origins=settings.ALLOWED_ORIGINS`
 
 - [ ] **Rate limiting enabled**
   - [ ] Login endpoint: 5 attempts per 15 minutes
   - [ ] API endpoints: 100 requests per minute
-  - [ ] Password reset: 3 attempts per hour
+  - [ ] Password reset: 3 attempts per hour (TODO: implement)
+  - [ ] Registration: 3 per hour per IP (TODO: implement)
 
 - [ ] **Session security**
-  - [ ] JWT expiration: 30 minutes
+  - [ ] JWT access token expiration: 30 minutes
   - [ ] Refresh token: 7 days max
+  - [ ] Reset token: 1 hour expiration
   - [ ] Secure cookie flags (HttpOnly, Secure, SameSite)
 
 ### **3. Database Security** 🗄️
@@ -96,17 +108,17 @@ Comprehensive security checklist for deploying Phonebook application to producti
   - [ ] HTTP → HTTPS redirect
   - [ ] HSTS header enabled
   ```
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   ```
 
-- [ ] **Security headers configured**
+- [ ] **Security headers configured** (✅ in main.py)
   ```
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: default-src 'self'
-  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; ...
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
   ```
 
 ---
@@ -119,41 +131,48 @@ Comprehensive security checklist for deploying Phonebook application to producti
   - [ ] Users can only access own data
   - [ ] Admin routes protected by role check
   - [ ] Ownership validation on all CRUD operations
+  - [ ] Password reset tokens bound to specific user
 
 - [ ] **Tested scenarios:**
   - [ ] User cannot view other users' contacts
   - [ ] User cannot update other users' contacts
   - [ ] Regular user cannot access /api/v1/admin/*
   - [ ] Unauthenticated users redirected to login
+  - [ ] Cannot use another user's reset token
 
 ### **A02: Cryptographic Failures** ✅
 
 - [ ] **Password storage**
-  - [ ] bcrypt hashing (cost factor 12+)
-  - [ ] Passwords never stored in plaintext
-  - [ ] Password never returned in API responses
+  - [ ] bcrypt hashing (cost factor 12+) ✅
+  - [ ] Passwords never stored in plaintext ✅
+  - [ ] Password never returned in API responses ✅
+  - [ ] Reset tokens hashed before storage ✅
 
 - [ ] **Data in transit**
   - [ ] HTTPS enforced
   - [ ] Database connections encrypted (SSL)
+  - [ ] Email sent via TLS (STARTTLS)
   - [ ] No sensitive data in URLs or logs
 
 ### **A03: Injection** ✅
 
 - [ ] **SQL injection prevention**
-  - [ ] ORM used (SQLAlchemy)
-  - [ ] Parameterized queries only
-  - [ ] No raw SQL or string concatenation
-  - [ ] Input validation with Pydantic
+  - [ ] ORM used (SQLAlchemy) ✅
+  - [ ] Parameterized queries only ✅
+  - [ ] No raw SQL or string concatenation ✅
+  - [ ] Input validation with Pydantic ✅
 
 - [ ] **XSS prevention**
-  - [ ] React auto-escaping enabled
-  - [ ] CSP headers configured
+  - [ ] React auto-escaping enabled ✅
+  - [ ] CSP headers configured ✅
   - [ ] No dangerouslySetInnerHTML usage
 
 - [ ] **Command injection prevention**
   - [ ] No os.system() or subprocess with user input
   - [ ] Input validation on all user inputs
+
+- [ ] **Email header injection prevention**
+  - [ ] Using fastapi-mail library (handles safely) ✅
 
 ### **A04: Insecure Design** ✅
 
@@ -162,13 +181,21 @@ Comprehensive security checklist for deploying Phonebook application to producti
   - [ ] Defense in depth
   - [ ] Threat modeling completed (STRIDE)
 
+- [ ] **Password reset design**
+  - [ ] Cryptographically secure tokens (secrets.token_urlsafe) ✅
+  - [ ] Token expiration (1 hour default) ✅
+  - [ ] Single-use tokens ✅
+  - [ ] Generic responses (no user enumeration) ✅
+  - [ ] Notification on password change ✅
+
 ### **A05: Security Misconfiguration** ✅
 
 - [ ] **Server hardening**
   - [ ] Unnecessary services disabled
   - [ ] Default passwords changed
-  - [ ] Error messages don't leak information
-  - [ ] Verbose errors disabled in production
+  - [ ] Error messages don't leak information ✅
+  - [ ] Verbose errors disabled in production ✅
+  - [ ] API docs disabled in production ✅
 
 - [ ] **Dependency management**
   ```bash
@@ -184,11 +211,19 @@ Comprehensive security checklist for deploying Phonebook application to producti
   # Backend
   pip list --outdated
   safety check
+  pip-audit
   
   # Frontend
   npm audit
   npm audit fix
   ```
+
+- [ ] **Key dependencies (verified secure versions)**
+  - [ ] fastapi==0.109.0
+  - [ ] sqlalchemy==2.0.25
+  - [ ] python-jose[cryptography]==3.3.0
+  - [ ] passlib[bcrypt]==1.7.4
+  - [ ] fastapi-mail==1.4.1
 
 - [ ] **Automated scanning**
   - [ ] Dependabot enabled (GitHub)
@@ -197,18 +232,27 @@ Comprehensive security checklist for deploying Phonebook application to producti
 ### **A07: Authentication Failures** ✅
 
 - [ ] **Strong password policy**
-  - [ ] Minimum 8 characters
-  - [ ] Requires: uppercase, lowercase, digit, special char
-  - [ ] Password complexity validation
+  - [ ] Minimum 8 characters ✅
+  - [ ] Requires: uppercase, lowercase, digit, special char ✅
+  - [ ] Password complexity validation (Pydantic) ✅
 
 - [ ] **Account lockout**
-  - [ ] 5 failed attempts = 15 minute lockout
-  - [ ] Lockout prevents brute force attacks
+  - [ ] 5 failed attempts = 15 minute lockout ✅
+  - [ ] Lockout prevents brute force attacks ✅
+  - [ ] Lockout logged in audit_logs ✅
 
 - [ ] **Session management**
-  - [ ] JWT tokens with expiration
-  - [ ] Refresh token rotation
-  - [ ] Logout invalidates tokens
+  - [ ] JWT tokens with expiration ✅
+  - [ ] Access/refresh token separation ✅
+  - [ ] Token type verification ✅
+  - [ ] Logout audit logging ✅
+
+- [ ] **Password reset security**
+  - [ ] Secure token generation (secrets.token_urlsafe(32)) ✅
+  - [ ] Token hashed with bcrypt ✅
+  - [ ] Single-use (cleared after reset) ✅
+  - [ ] Expiration enforced ✅
+  - [ ] Email notification after change ✅
 
 ### **A08: Software and Data Integrity** ✅
 
@@ -220,10 +264,22 @@ Comprehensive security checklist for deploying Phonebook application to producti
 ### **A09: Logging Failures** ✅
 
 - [ ] **Comprehensive logging**
-  - [ ] All authentication events logged
-  - [ ] All authorization failures logged
-  - [ ] All data modifications logged (audit_logs)
-  - [ ] Logs include: timestamp, user, IP, action
+  - [ ] All authentication events logged ✅
+  - [ ] All authorization failures logged ✅
+  - [ ] All data modifications logged (audit_logs) ✅
+  - [ ] Logs include: timestamp, user, IP, action ✅
+  - [ ] Password reset events logged ✅
+
+- [ ] **Audit log actions tracked:**
+  - [ ] `login_success` ✅
+  - [ ] `login_failed` ✅
+  - [ ] `logout` ✅
+  - [ ] `register` ✅
+  - [ ] `password_change` ✅
+  - [ ] `password_reset_request` ✅
+  - [ ] `password_reset_complete` ✅
+  - [ ] `account_locked` ✅
+  - [ ] Contact CRUD operations ✅
 
 - [ ] **Log security**
   - [ ] Logs don't contain passwords/secrets
@@ -235,6 +291,7 @@ Comprehensive security checklist for deploying Phonebook application to producti
   - [ ] Error rate alerts
   - [ ] Disk space alerts
   - [ ] Database connection alerts
+  - [ ] Email delivery failure alerts
 
 ### **A10: Server-Side Request Forgery** ✅
 
@@ -242,6 +299,7 @@ Comprehensive security checklist for deploying Phonebook application to producti
   - [ ] No user-controlled URLs in backend
   - [ ] Input validation on any external requests
   - [ ] Whitelist allowed domains
+  - [ ] Email URLs constructed server-side ✅
 
 ---
 
@@ -307,6 +365,19 @@ pylint app/
   GET /api/v1/admin/users (as regular user)
   ```
   Expected: 403 Forbidden
+
+- [ ] **Password reset abuse**
+  ```
+  POST /api/v1/auth/forgot-password
+  {"email": "nonexistent@example.com"}
+  ```
+  Expected: Same response as valid email (no enumeration)
+
+- [ ] **Token reuse**
+  ```
+  Use reset token twice
+  ```
+  Expected: Second attempt fails
 
 ---
 
@@ -381,6 +452,7 @@ For production systems handling sensitive data:
 - [ ] Isolation procedures
 - [ ] Backup restoration tested
 - [ ] Rollback procedures documented
+- [ ] Password reset mass-invalidation plan
 
 ### **Post-Incident**
 
@@ -397,6 +469,7 @@ For production systems handling sensitive data:
 - [ ] **Disaster recovery plan**
 - [ ] **Contact information for security team**
 - [ ] **Change management process**
+- [ ] **Password reset process documented**
 
 ---
 
@@ -411,20 +484,24 @@ pytest
 # 2. Security scan
 bandit -r app/
 safety check
+pip-audit
 
 # 3. Check secrets
 git secrets --scan
 
 # 4. Verify environment
-printenv | grep -i "secret\|password\|key"
+printenv | grep -i "secret\|password\|key\|smtp"
 
 # 5. Test backup restoration
 # (Restore to staging and verify)
 
-# 6. Load testing
+# 6. Test password reset flow
+# Request reset → check email → reset password → verify login
+
+# 7. Load testing
 # Use tools like Apache Bench, Locust, or K6
 
-# 7. Verify monitoring
+# 8. Verify monitoring
 # Check dashboards, test alerts
 ```
 
@@ -438,7 +515,15 @@ printenv | grep -i "secret\|password\|key"
 
 ---
 
-**Security Checklist Version**: 1.0.0  
-**Last Updated**: 2026-01-20  
-**Next Review**: 2026-04-20 (quarterly)  
+**Security Checklist Version**: 2.0.0  
+**Last Updated**: 2026-02-05  
+**Next Review**: 2026-05-05 (quarterly)  
 **Status**: Production Ready ✅
+
+**Changelog v2.0:**
+- Added Password Reset security section
+- Added SMTP/Email configuration
+- Updated audit log actions
+- Added email-related security checks
+- Updated OWASP A07 with reset token security
+- Added CORS hardcoding warning
